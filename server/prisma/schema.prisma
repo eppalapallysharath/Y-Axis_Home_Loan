@@ -1,5 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Prisma schema for Y-Axis Home Loan Processing System
 
 generator client {
   provider = "prisma-client-js"
@@ -7,4 +6,193 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EXECUTIVE
+}
+
+enum ApplicationType {
+  HOME_LOAN
+  TOP_UP
+  LAP
+}
+
+enum ApplicationStage {
+  NEW
+  WAITING_FOR_INFO
+  IN_PROGRESS
+  UNDER_REVIEW
+  COMPLETED
+  REJECTED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum WorkItemType {
+  CIBIL_CHECK
+  DOCUMENT_VERIFICATION
+  LEGAL_TITLE_SEARCH
+  PROPERTY_VALUATION
+  FINAL_REVIEW
+  OTHER
+}
+
+enum WorkItemStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum ActivityAction {
+  CREATED
+  ASSIGNED
+  REASSIGNED
+  STATUS_CHANGED
+  APPLICATION_CREATED
+  APPLICATION_ASSIGNED
+  APPLICATION_REASSIGNED
+  APPLICATION_REJECTED
+  WORK_ITEM_CREATED
+  WORK_ITEM_UPDATED
+  WORK_ITEM_STATUS_UPDATED
+  WORK_ITEM_COMPLETED
+  CBS_SYNC_INITIATED
+  CBS_SYNC_SUCCESS
+  CBS_SYNC_FAILED
+  CBS_SYNC_EXHAUSTED
+  NOTE_ADDED
+}
+
+enum CbsSyncStatus {
+  PENDING
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+  EXHAUSTED
+  NOT_APPLICABLE
+}
+
+model Team {
+  id        Int      @id @default(autoincrement())
+  name      String
+  managerId Int      @unique
+  manager   User     @relation("TeamManager", fields: [managerId], references: [id])
+  members   User[]   @relation("TeamMembers")
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id                   Int               @id @default(autoincrement())
+  name                 String
+  email                String            @unique
+  passwordHash         String
+  refreshTokenHash     String?
+  isActive             Boolean           @default(true)
+  lastLoginAt          DateTime?
+  role                 Role              @default(EXECUTIVE)
+  teamId               Int?
+  team                 Team?             @relation("TeamMembers", fields: [teamId], references: [id])
+  managedTeam          Team?             @relation("TeamManager")
+  createdCustomers     Customer[]        @relation("CreatedCustomers")
+  createdApplications  LoanApplication[] @relation("CreatedApplications")
+  assignedApplications LoanApplication[] @relation("AssignedApplications")
+  assignedWorkItems    WorkItem[]        @relation("AssignedWorkItems")
+  createdWorkItems     WorkItem[]        @relation("CreatedWorkItems")
+  activityLogs         ActivityLog[]
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+}
+
+model Customer {
+  id             Int               @id @default(autoincrement())
+  fullName       String
+  email          String
+  phone          String
+  panNumber      String            @unique
+  aadhaarNumber  String?
+  dateOfBirth    DateTime?
+  address        String?
+  employmentType String            @default("SALARIED")
+  annualIncome   Float?
+  creditScore    Int?
+  createdById    Int
+  createdBy      User              @relation("CreatedCustomers", fields: [createdById], references: [id])
+  applications   LoanApplication[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model LoanApplication {
+  id              Int              @id @default(autoincrement())
+  customerId      Int
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  applicationType ApplicationType  @default(HOME_LOAN)
+  loanAmount      Float
+  propertyAddress String?
+  propertyValue   Float?
+  remarks         String?
+  stage           ApplicationStage @default(NEW)
+  priority        Priority         @default(MEDIUM)
+  assignedToId    Int?
+  assignedTo      User?            @relation("AssignedApplications", fields: [assignedToId], references: [id])
+  createdById     Int
+  createdBy       User             @relation("CreatedApplications", fields: [createdById], references: [id])
+  cbsSyncStatus   CbsSyncStatus    @default(PENDING)
+  rejectionReason String?
+  workItems       WorkItem[]
+  activityLogs    ActivityLog[]
+  cbsSyncJob      CbsSyncJob?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model WorkItem {
+  id            Int             @id @default(autoincrement())
+  applicationId Int
+  application   LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  type          WorkItemType
+  status        WorkItemStatus  @default(OPEN)
+  assignedToId  Int?
+  assignedTo    User?           @relation("AssignedWorkItems", fields: [assignedToId], references: [id])
+  createdById   Int?
+  createdBy     User?           @relation("CreatedWorkItems", fields: [createdById], references: [id])
+  completedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model ActivityLog {
+  id            Int             @id @default(autoincrement())
+  applicationId Int
+  application   LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        Int
+  user          User            @relation(fields: [userId], references: [id])
+  action        ActivityAction
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+}
+
+model CbsSyncJob {
+  id            Int             @id @default(autoincrement())
+  applicationId Int             @unique
+  application   LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  status        CbsSyncStatus   @default(PENDING)
+  attempts      Int             @default(0)
+  maxAttempts   Int             @default(4)
+  lastAttemptAt DateTime?
+  nextRetryAt   DateTime?
+  lastError     String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 }

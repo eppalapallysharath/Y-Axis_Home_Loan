@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 import StoreProvider from "@/redux/StoreProvider";
+import { AuthInitializer } from "../components/auth/AuthInitializer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,8 +25,11 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <StoreProvider>{children}</StoreProvider>
+      <body className="min-h-full flex flex-col bg-[#F8FAFC] text-[#1A2B4C]">
+        <StoreProvider>
+          <AuthInitializer>{children}</AuthInitializer>
+        </StoreProvider>
+        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       </body>
     </html>
   );

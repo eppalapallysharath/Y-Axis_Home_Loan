@@ -2,7 +2,15 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
+const cookieParser = require("cookie-parser");
 const envConfig = require("./config/env.config");
+
+const authRoutes = require("./routes/auth.routes");
+const userRoutes = require("./routes/user.routes");
+const customerRoutes = require("./routes/customer.routes");
+const applicationRoutes = require("./routes/application.routes");
+const cbsSyncRoutes = require("./routes/cbsSync.routes");
+const mockCbsRouter = require("./routes/mockCbs");
 
 const app = express();
 
@@ -12,6 +20,9 @@ const app = express();
 
 // Helmet HTTP Security Headers
 app.use(helmet());
+
+// Cookie Parser Middleware
+app.use(cookieParser());
 
 // CORS Configuration
 const allowedOrigins = envConfig.clientOrigin
@@ -87,6 +98,17 @@ app.get("/api/v1", (req, res) => {
   });
 });
 
+// API V1 Routers
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/admin", userRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/customers", customerRoutes);
+app.use("/api/v1/applications", applicationRoutes);
+app.use("/api/v1/sync-jobs", cbsSyncRoutes);
+
+// Mock Core Banking System Endpoint (simulated external service)
+app.use("/mock-cbs", mockCbsRouter);
+
 // ==========================================
 // 3. Error Handling Middleware
 // ==========================================
@@ -115,4 +137,5 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Server configured for Y-Axis Home Loan Processing System - V1
 module.exports = app;

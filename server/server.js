@@ -1,6 +1,7 @@
 const app = require("./app");
 const envConfig = require("./config/env.config");
 const { prisma, testDbConnection } = require("./config/db");
+const { startRetryWorker, stopRetryWorker } = require("./workers/cbsRetryWorker");
 
 // ==========================================
 // 1. Uncaught Exception Handler
@@ -24,6 +25,9 @@ const server = app.listen(envConfig.port, async () => {
 
   // Connect and test PostgreSQL connection via Prisma
   await testDbConnection();
+
+  // Start CBS retry worker background task
+  startRetryWorker();
 });
 
 // ==========================================
@@ -33,6 +37,7 @@ process.on("unhandledRejection", (err) => {
   console.error("UNHANDLED REJECTION! 💥 Shutting down gracefully...");
   console.error(err);
   server.close(async () => {
+    stopRetryWorker();
     await prisma.$disconnect();
     process.exit(1);
   });
@@ -44,6 +49,8 @@ process.on("unhandledRejection", (err) => {
 const gracefulShutdown = (signal) => {
   console.log(`👋 ${signal} RECEIVED. Shutting down gracefully...`);
   server.close(async () => {
+    console.log("🔌 Stopping CBS retry worker...");
+    stopRetryWorker();
     console.log("🔌 Disconnecting Prisma database client...");
     await prisma.$disconnect();
     console.log("💥 Process terminated cleanly.");
