@@ -1,4 +1,8 @@
-import { useAuthStore } from '../store/authStore';
+let storeRef = null;
+
+export const injectStore = (store) => {
+  storeRef = store;
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
@@ -32,10 +36,24 @@ const clearAccessTokenCookie = () => {
 };
 
 /**
+ * Get access token from Redux store if available
+ */
+const getAccessToken = () => {
+  if (storeRef) {
+    try {
+      return storeRef.getState()?.auth?.accessToken || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+/**
  * Custom fetch wrapper that handles Auth headers, credentials, and silent token refresh with queueing
  */
 export async function apiFetch(endpoint, options = {}) {
-  const token = useAuthStore.getState().accessToken;
+  const token = getAccessToken();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -89,7 +107,12 @@ export async function apiFetch(endpoint, options = {}) {
         const newToken = refreshData.accessToken || refreshData.data?.accessToken;
 
         if (user && newToken) {
-          useAuthStore.getState().setAuth(user, newToken);
+          if (storeRef) {
+            storeRef.dispatch({
+              type: 'auth/setAuth',
+              payload: { user, accessToken: newToken },
+            });
+          }
           setAccessTokenCookie(newToken);
 
           processQueue(null, newToken);
@@ -108,7 +131,9 @@ export async function apiFetch(endpoint, options = {}) {
       }
     } catch (refreshErr) {
       processQueue(refreshErr, null);
-      useAuthStore.getState().clearAuth();
+      if (storeRef) {
+        storeRef.dispatch({ type: 'auth/clearAuth' });
+      }
       clearAccessTokenCookie();
 
       const PUBLIC_PATHS = ['/', '/login'];

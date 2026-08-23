@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { ArrowLeft, User, CreditCard, Briefcase, Calendar, MapPin, DollarSign, ShieldCheck, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuth } from '../../../redux/hooks';
 import { useCreateCustomer } from '../../../hooks/useCustomers';
 import { PanInput } from '../../../components/customers/PanInput';
 
 export default function CreateCustomerPage() {
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuthStore();
+  const { user, isLoading: authLoading } = useAuth();
   const { createCustomer, loading, error: submitError } = useCreateCustomer();
 
   const [formData, setFormData] = useState({
@@ -53,11 +53,21 @@ export default function CreateCustomerPage() {
       errors.phone = 'Phone must be exactly 10 digits';
     }
 
-    if (formData.aadhaarNumber && !/^\d{12}$/.test(formData.aadhaarNumber.trim())) {
+    if (!formData.aadhaarNumber || !formData.aadhaarNumber.trim()) {
+      errors.aadhaarNumber = 'Aadhaar number is required';
+    } else if (!/^\d{12}$/.test(formData.aadhaarNumber.trim())) {
       errors.aadhaarNumber = 'Aadhaar must be exactly 12 digits';
     }
 
-    if (formData.creditScore) {
+    if (!formData.annualIncome || String(formData.annualIncome).trim() === '') {
+      errors.annualIncome = 'Annual salary/income is required';
+    } else if (isNaN(Number(formData.annualIncome)) || Number(formData.annualIncome) <= 0) {
+      errors.annualIncome = 'Please enter a valid positive salary/income';
+    }
+
+    if (!formData.creditScore || String(formData.creditScore).trim() === '') {
+      errors.creditScore = 'CIBIL credit score is required';
+    } else {
       const score = Number(formData.creditScore);
       if (isNaN(score) || score < 300 || score > 900) {
         errors.creditScore = 'Credit score must be between 300 and 900';
@@ -95,7 +105,7 @@ export default function CreateCustomerPage() {
 
     if (res.success) {
       toast.success('Customer profile created successfully! 🎉');
-      router.push(`/customers/${res.data.id}`);
+      router.push('/customers');
     } else if (res.status === 409 && res.data) {
       const msg = res.data.message || 'A customer with this PAN already exists.';
       setDuplicateConflict({
@@ -240,7 +250,7 @@ export default function CreateCustomerPage() {
                 {/* Aadhaar Number */}
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Aadhaar Number <span className="text-slate-400 font-normal">(Optional — 12 digits)</span>
+                    Aadhaar Number <span className="text-rose-500">*</span> <span className="text-slate-400 font-normal">(12 digits)</span>
                   </label>
                   <input
                     type="text"
@@ -333,7 +343,7 @@ export default function CreateCustomerPage() {
                 {/* Annual Income */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Annual Income (₹ INR)
+                    Annual Salary / Income (₹ INR) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -342,21 +352,41 @@ export default function CreateCustomerPage() {
                     value={formData.annualIncome}
                     onChange={(e) => handleChange('annualIncome', e.target.value)}
                     placeholder="e.g. 1200000"
-                    className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+                    className={`w-full px-3.5 py-2 bg-white border ${
+                      validationErrors.annualIncome ? 'border-rose-400 focus:ring-rose-200' : 'border-slate-300 focus:ring-blue-100'
+                    } rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all`}
                   />
+                  {validationErrors.annualIncome && (
+                    <p className="text-xs text-rose-600">{validationErrors.annualIncome}</p>
+                  )}
                 </div>
 
                 {/* Credit Score */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    CIBIL Credit Score <span className="text-slate-400 font-normal">(300–900)</span>
+                    CIBIL Credit Score <span className="text-rose-500">*</span> <span className="text-slate-400 font-normal">(300–900)</span>
                   </label>
                   <input
                     type="number"
                     min="300"
                     max="900"
                     value={formData.creditScore}
-                    onChange={(e) => handleChange('creditScore', e.target.value)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        handleChange('creditScore', '');
+                        return;
+                      }
+                      const num = parseInt(raw, 10);
+                      if (isNaN(num)) return;
+                      if (num > 900) {
+                        handleChange('creditScore', 900);
+                      } else if (num < 0) {
+                        handleChange('creditScore', 0);
+                      } else {
+                        handleChange('creditScore', raw);
+                      }
+                    }}
                     placeholder="e.g. 750"
                     className={`w-full px-3.5 py-2 bg-white border ${
                       validationErrors.creditScore ? 'border-rose-400 focus:ring-rose-200' : 'border-slate-300 focus:ring-blue-100'

@@ -22,7 +22,7 @@ import {
   ExternalLink,
   ChevronRight,
 } from 'lucide-react';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuth } from '../../../redux/hooks';
 import { useCustomer } from '../../../hooks/useCustomers';
 import { CreditScoreBadge } from '../../../components/customers/CreditScoreBadge';
 
@@ -31,7 +31,7 @@ export default function CustomerDetailPage({ params }) {
   const customerId = unwrappedParams.id;
   const router = useRouter();
 
-  const { user, isLoading: authLoading } = useAuthStore();
+  const { user, isLoading: authLoading } = useAuth();
   const { customer, loading, error } = useCustomer(customerId);
 
   useEffect(() => {

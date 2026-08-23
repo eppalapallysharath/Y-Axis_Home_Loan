@@ -4,7 +4,7 @@ import { Suspense, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Users, Phone, Mail, Loader2, FileText, ArrowUpRight } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useCustomerFilters } from '../../hooks/useCustomerFilters';
 import { CustomerSearchBar } from '../../components/customers/CustomerSearchBar';
@@ -14,19 +14,15 @@ import { EmptyState } from '../../components/common/EmptyState';
 
 function CustomersContent() {
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuthStore();
+  const { user, isLoading: authLoading } = useAuth();
   const { filters, setFilter, clearFilters, hasActiveFilters } = useCustomerFilters();
-  const { customers, pagination, loading, error, refetch } = useCustomers(filters);
+  const { customers, pagination, loading, error } = useCustomers(filters);
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
     }
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    refetch();
-  }, [filters.search, filters.employmentType, filters.fromDate, filters.toDate, filters.page, filters.limit, refetch]);
 
   if (authLoading || (!user && loading)) {
     return (

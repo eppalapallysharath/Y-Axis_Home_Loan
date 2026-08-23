@@ -1,78 +1,66 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '../lib/api';
+import { useEffect, useCallback } from 'react';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import {
+  fetchActivityLogs as fetchActivityLogsThunk,
+  addNote as addNoteThunk,
+  setActionsFilter as setActionsFilterAction,
+  selectActivityLogs,
+  selectActivityPagination,
+  selectActivityActionsFilter,
+  selectActivityLoading,
+  selectActivityLoadingMore,
+  selectActivityActionLoading,
+  selectActivityError,
+} from '../redux/slices/activityLogSlice';
 
 /**
- * Hook to fetch paginated & filtered activity logs for a loan application
+ * Redux-backed Hook to fetch paginated & filtered activity logs for a loan application
  */
 export function useActivityLogs(appId, initialActions = []) {
-  const [logs, setLogs] = useState([]);
-  const [pagination, setPagination] = useState({
-    total: 0,
-    page: 1,
-    limit: 20,
-    totalPages: 1,
-  });
-  const [actionsFilter, setActionsFilter] = useState(initialActions);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const logs = useAppSelector(selectActivityLogs);
+  const pagination = useAppSelector(selectActivityPagination);
+  const actionsFilter = useAppSelector(selectActivityActionsFilter);
+  const loading = useAppSelector(selectActivityLoading);
+  const loadingMore = useAppSelector(selectActivityLoadingMore);
+  const error = useAppSelector(selectActivityError);
 
-  const fetchActivityLogs = useCallback(
-    async (pageToFetch = 1, append = false) => {
+  useEffect(() => {
+    if (initialActions && initialActions.length > 0) {
+      dispatch(setActionsFilterAction(initialActions));
+    }
+  }, []); // Run once on mount
+
+  const fetchLogs = useCallback(
+    (pageToFetch = 1, append = false) => {
       if (!appId) return;
-
-      if (append) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      try {
-        const params = new URLSearchParams();
-        params.append('page', String(pageToFetch));
-        params.append('limit', '20');
-
-        if (actionsFilter && actionsFilter.length > 0) {
-          params.append('actions', actionsFilter.join(','));
-        }
-
-        const res = await api.get(`/applications/${appId}/activity?${params.toString()}`);
-
-        if (append) {
-          setLogs((prev) => [...prev, ...(res.data || [])]);
-        } else {
-          setLogs(res.data || []);
-        }
-
-        setPagination(
-          res.pagination || {
-            total: 0,
-            page: pageToFetch,
-            limit: 20,
-            totalPages: 1,
-          }
-        );
-      } catch (err) {
-        setError(err.data?.message || err.message || 'Failed to fetch activity logs.');
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
+      dispatch(
+        fetchActivityLogsThunk({
+          appId,
+          page: pageToFetch,
+          limit: 20,
+          actions: actionsFilter,
+          append,
+        })
+      );
     },
-    [appId, actionsFilter]
+    [dispatch, appId, actionsFilter]
   );
 
   useEffect(() => {
-    fetchActivityLogs(1, false);
-  }, [fetchActivityLogs]);
+    fetchLogs(1, false);
+  }, [fetchLogs]);
 
   const loadMore = () => {
     if (pagination.page < pagination.totalPages && !loadingMore) {
-      fetchActivityLogs(pagination.page + 1, true);
+      fetchLogs(pagination.page + 1, true);
     }
+  };
+
+  const setActionsFilter = (actions) => {
+    dispatch(setActionsFilterAction(actions));
   };
 
   return {
@@ -83,36 +71,37 @@ export function useActivityLogs(appId, initialActions = []) {
     loading,
     loadingMore,
     error,
-    refetch: () => fetchActivityLogs(1, false),
+    refetch: () => fetchLogs(1, false),
     loadMore,
     hasMore: pagination.page < pagination.totalPages,
   };
 }
 
 /**
- * Hook to submit a manual note to the application activity log
+ * Redux-backed Hook to submit a manual note to the application activity log
  */
 export function useAddNote(appId) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const loading = useAppSelector(selectActivityActionLoading);
+  const error = useAppSelector(selectActivityError);
 
   const addNote = async (noteText) => {
     if (!noteText || !noteText.trim()) {
       return { success: false, message: 'Note text cannot be empty.' };
     }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await api.post(`/applications/${appId}/notes`, { noteText: noteText.trim() });
-      setLoading(false);
-      return { success: true, message: res.message || 'Note added successfully', data: res.data };
-    } catch (err) {
-      setLoading(false);
-      const msg = err.data?.message || err.message || 'Failed to add note.';
-      setError(msg);
-      return { success: false, message: msg };
+    const resultAction = await dispatch(addNoteThunk({ appId, noteText }));
+    if (addNoteThunk.fulfilled.match(resultAction)) {
+      return {
+        success: true,
+        message: resultAction.payload.message,
+        data: resultAction.payload.data,
+      };
+    } else {
+      return {
+        success: false,
+        message: resultAction.payload || 'Failed to add note.',
+      };
     }
   };
 

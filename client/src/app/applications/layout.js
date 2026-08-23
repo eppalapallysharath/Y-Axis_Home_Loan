@@ -4,11 +4,11 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { Navbar } from '../../components/layout/Navbar';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 
 export default function ApplicationsLayout({ children }) {
   const router = useRouter();
-  const { user, isLoading } = useAuthStore();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
     if (!isLoading && !user) {

@@ -9,7 +9,7 @@
  */
 const buildCustomerScope = (user) => {
   if (!user) return { id: -1 };
-  const userId = user.sub || user.id;
+  const userId = parseInt(user.sub || user.id, 10);
 
   if (user.role === 'ADMIN') {
     return {};
@@ -17,13 +17,36 @@ const buildCustomerScope = (user) => {
 
   if (user.role === 'MANAGER') {
     return {
-      applications: {
-        some: {
-          assignedTo: {
-            teamId: user.teamId,
-          },
-        },
-      },
+      OR: [
+        { createdById: userId },
+        ...(user.teamId
+          ? [
+              { createdBy: { teamId: user.teamId } },
+              {
+                applications: {
+                  some: {
+                    OR: [
+                      { assignedTo: { teamId: user.teamId } },
+                      { createdBy: { teamId: user.teamId } },
+                      { assignedToId: null },
+                    ],
+                  },
+                },
+              },
+            ]
+          : [
+              {
+                applications: {
+                  some: {
+                    OR: [
+                      { createdById: userId },
+                      { assignedToId: null },
+                    ],
+                  },
+                },
+              },
+            ]),
+      ],
     };
   }
 
@@ -34,7 +57,10 @@ const buildCustomerScope = (user) => {
         {
           applications: {
             some: {
-              assignedToId: userId,
+              OR: [
+                { assignedToId: userId },
+                { createdById: userId },
+              ],
             },
           },
         },
@@ -52,7 +78,7 @@ const buildCustomerScope = (user) => {
  */
 const buildApplicationScopeForCustomer = (user) => {
   if (!user) return { id: -1 };
-  const userId = user.sub || user.id;
+  const userId = parseInt(user.sub || user.id, 10);
 
   if (user.role === 'ADMIN') {
     return {};
@@ -60,15 +86,25 @@ const buildApplicationScopeForCustomer = (user) => {
 
   if (user.role === 'MANAGER') {
     return {
-      assignedTo: {
-        teamId: user.teamId,
-      },
+      OR: [
+        ...(user.teamId
+          ? [
+              { assignedTo: { teamId: user.teamId } },
+              { createdBy: { teamId: user.teamId } },
+            ]
+          : []),
+        { assignedToId: null },
+        { createdById: userId },
+      ],
     };
   }
 
   if (user.role === 'EXECUTIVE') {
     return {
-      assignedToId: userId,
+      OR: [
+        { assignedToId: userId },
+        { createdById: userId },
+      ],
     };
   }
 

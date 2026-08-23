@@ -4,7 +4,7 @@ import Link from 'next/link';
 import StageBadge from './StageBadge';
 import PriorityBadge from './PriorityBadge';
 import CbsSyncBadge from './CbsSyncBadge';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 
 export default function ApplicationTable({
   applications,
@@ -12,7 +12,7 @@ export default function ApplicationTable({
   pagination,
   onPageChange,
 }) {
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
   const canSeeCbs = user && (user.role === 'ADMIN' || user.role === 'MANAGER');
 
   if (loading) {

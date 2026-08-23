@@ -19,10 +19,10 @@ import {
   Layers,
   ArrowRight,
 } from "lucide-react";
-import { useAuthStore } from "../store/authStore";
+import { useAuth } from "../redux/hooks";
 
 export default function LandingPage() {
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("crm");
 
   return (

@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, FileText, UserCheck, ShieldCheck, Building2 } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 import { RoleGate } from '../auth/RoleGate';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },

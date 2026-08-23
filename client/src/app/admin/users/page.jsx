@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { UserPlus, Users, Building2, Shield, Plus, X, Check, AlertCircle } from 'lucide-react';
 import { api } from '../../../lib/api';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuth } from '../../../redux/hooks';
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const { user, isRole, isLoading } = useAuthStore();
+  const { user, isRole, isLoading } = useAuth();
 
   const [usersList, setUsersList] = useState([]);
   const [teamsList, setTeamsList] = useState([]);

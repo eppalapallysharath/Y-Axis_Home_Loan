@@ -1,60 +1,62 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '../lib/api';
+import { useEffect, useCallback } from 'react';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import {
+  fetchWorkItems,
+  createWorkItem as createWorkItemThunk,
+  applyChecklist as applyChecklistThunk,
+  updateWorkItem as updateWorkItemThunk,
+  deleteWorkItem as deleteWorkItemThunk,
+  selectWorkItems,
+  selectWorkItemsLoading,
+  selectWorkItemActionLoading,
+  selectWorkItemsError,
+} from '../redux/slices/workItemSlice';
 
 /**
- * Hook to fetch work items list for a specific loan application
+ * Redux-backed Hook to fetch work items list for a specific loan application
  */
 export function useWorkItems(appId) {
-  const [workItems, setWorkItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const workItems = useAppSelector(selectWorkItems);
+  const loading = useAppSelector(selectWorkItemsLoading);
+  const error = useAppSelector(selectWorkItemsError);
 
-  const fetchWorkItems = useCallback(async () => {
-    if (!appId || isNaN(appId)) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/applications/${appId}/work-items`);
-      setWorkItems(res.data || []);
-    } catch (err) {
-      console.error(`Error fetching work items for application #${appId}:`, err);
-      setError(err);
-    } finally {
-      setLoading(false);
+  const refetch = useCallback(() => {
+    if (appId && !isNaN(appId)) {
+      dispatch(fetchWorkItems(appId));
     }
-  }, [appId]);
+  }, [dispatch, appId]);
 
   useEffect(() => {
-    fetchWorkItems();
-  }, [fetchWorkItems]);
+    if (appId && !isNaN(appId)) {
+      dispatch(fetchWorkItems(appId));
+    }
+  }, [dispatch, appId]);
 
-  return { workItems, loading, error, refetch: fetchWorkItems };
+  return { workItems, loading, error, refetch };
 }
 
 /**
- * Hook to create a work item
+ * Redux-backed Hook to create a work item
  */
 export function useCreateWorkItem(appId) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const loading = useAppSelector(selectWorkItemActionLoading);
+  const error = useAppSelector(selectWorkItemsError);
 
   const createWorkItem = async (payload) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.post(`/applications/${appId}/work-items`, payload);
-      return { success: true, data: res.data };
-    } catch (err) {
-      setError(err);
+    const resultAction = await dispatch(createWorkItemThunk({ appId, payload }));
+    if (createWorkItemThunk.fulfilled.match(resultAction)) {
+      return { success: true, data: resultAction.payload };
+    } else {
+      const err = resultAction.payload || {};
       return {
         success: false,
-        message: err.data?.message || err.message || 'Failed to create work item',
-        error: err,
+        message: err.message || 'Failed to create work item',
+        error: err.error,
       };
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -62,27 +64,28 @@ export function useCreateWorkItem(appId) {
 }
 
 /**
- * Hook to apply standard checklist (bulk create standard work items)
+ * Redux-backed Hook to apply standard checklist (bulk create standard work items)
  */
 export function useApplyChecklist(appId) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const loading = useAppSelector(selectWorkItemActionLoading);
+  const error = useAppSelector(selectWorkItemsError);
 
   const applyChecklist = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.post(`/applications/${appId}/work-items/bulk`);
-      return { success: true, data: res.data, message: res.message };
-    } catch (err) {
-      setError(err);
+    const resultAction = await dispatch(applyChecklistThunk(appId));
+    if (applyChecklistThunk.fulfilled.match(resultAction)) {
+      return {
+        success: true,
+        data: resultAction.payload.data,
+        message: resultAction.payload.message,
+      };
+    } else {
+      const err = resultAction.payload || {};
       return {
         success: false,
-        message: err.data?.message || err.message || 'Failed to apply standard checklist',
-        error: err,
+        message: err.message || 'Failed to apply standard checklist',
+        error: err.error,
       };
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -90,27 +93,24 @@ export function useApplyChecklist(appId) {
 }
 
 /**
- * Hook to update a work item (status, assignment, details)
+ * Redux-backed Hook to update a work item (status, assignment, details)
  */
 export function useUpdateWorkItem(appId) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const loading = useAppSelector(selectWorkItemActionLoading);
+  const error = useAppSelector(selectWorkItemsError);
 
   const updateWorkItem = async (itemId, payload) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.patch(`/applications/${appId}/work-items/${itemId}`, payload);
-      return { success: true, data: res.data };
-    } catch (err) {
-      setError(err);
+    const resultAction = await dispatch(updateWorkItemThunk({ appId, itemId, payload }));
+    if (updateWorkItemThunk.fulfilled.match(resultAction)) {
+      return { success: true, data: resultAction.payload };
+    } else {
+      const err = resultAction.payload || {};
       return {
         success: false,
-        message: err.data?.message || err.message || 'Failed to update work item',
-        error: err,
+        message: err.message || 'Failed to update work item',
+        error: err.error,
       };
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -118,27 +118,24 @@ export function useUpdateWorkItem(appId) {
 }
 
 /**
- * Hook to delete an OPEN work item
+ * Redux-backed Hook to delete an OPEN work item
  */
 export function useDeleteWorkItem(appId) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const loading = useAppSelector(selectWorkItemActionLoading);
+  const error = useAppSelector(selectWorkItemsError);
 
   const deleteWorkItem = async (itemId) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.delete(`/applications/${appId}/work-items/${itemId}`);
-      return { success: true, message: res.message };
-    } catch (err) {
-      setError(err);
+    const resultAction = await dispatch(deleteWorkItemThunk({ appId, itemId }));
+    if (deleteWorkItemThunk.fulfilled.match(resultAction)) {
+      return { success: true, message: resultAction.payload.message };
+    } else {
+      const err = resultAction.payload || {};
       return {
         success: false,
-        message: err.data?.message || err.message || 'Failed to delete work item',
-        error: err,
+        message: err.message || 'Failed to delete work item',
+        error: err.error,
       };
-    } finally {
-      setLoading(false);
     }
   };
 

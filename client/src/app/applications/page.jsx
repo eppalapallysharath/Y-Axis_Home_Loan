@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { Filter, RotateCcw, Plus, Layers, Loader2 } from 'lucide-react';
+import { useAuth } from '../../redux/hooks';
 import { useApplications } from '../../hooks/useApplications';
 import { useApplicationFilters } from '../../hooks/useApplicationFilters';
 import { SearchInput } from '../../components/common/SearchInput';
@@ -36,26 +37,13 @@ const LOAN_TYPE_OPTIONS = [
 ];
 
 function ApplicationsContent() {
+  const { user } = useAuth();
+  const isExecutive = user?.role === 'EXECUTIVE';
+
   const { filters, setFilter, clearFilters, hasActiveFilters, activeFilterCount } =
     useApplicationFilters();
 
-  const { applications, pagination, loading, error, refetch } = useApplications(filters);
-
-  // Sync refetch when URL filters change
-  useEffect(() => {
-    refetch();
-  }, [
-    filters.search,
-    filters.stage,
-    filters.priority,
-    filters.loanType,
-    filters.assignedToId,
-    filters.fromDate,
-    filters.toDate,
-    filters.page,
-    filters.limit,
-    refetch,
-  ]);
+  const { applications, pagination, loading, error } = useApplications(filters);
 
   return (
     <div className="space-y-6">
@@ -113,7 +101,7 @@ function ApplicationsContent() {
         </div>
 
         {/* Structured Filter Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${isExecutive ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4 pt-4 border-t border-slate-100`}>
           <MultiSelectFilter
             label="Stage"
             options={STAGE_OPTIONS}
@@ -135,12 +123,14 @@ function ApplicationsContent() {
             onChange={(loanType) => setFilter({ loanType })}
           />
 
-          <div className="space-y-4">
-            <AssigneeFilter
-              value={filters.assignedToId}
-              onChange={(assignedToId) => setFilter({ assignedToId })}
-            />
-          </div>
+          {!isExecutive && (
+            <div className="space-y-4">
+              <AssigneeFilter
+                value={filters.assignedToId}
+                onChange={(assignedToId) => setFilter({ assignedToId })}
+              />
+            </div>
+          )}
         </div>
 
         {/* Date Range Picker Row */}

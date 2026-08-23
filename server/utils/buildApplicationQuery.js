@@ -72,6 +72,8 @@ const buildApplicationQuery = ({
         OR: [
           { customer: { fullName: { contains: cleanSearch, mode: 'insensitive' } } },
           { customer: { panNumber: { contains: cleanSearch, mode: 'insensitive' } } },
+          { customer: { email: { contains: cleanSearch, mode: 'insensitive' } } },
+          { customer: { phone: { contains: cleanSearch, mode: 'insensitive' } } },
           ...(isNumericSearch ? [{ id: parsedSearchId }] : []),
         ],
       }

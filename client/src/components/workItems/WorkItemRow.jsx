@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import WorkItemTypeBadge from './WorkItemTypeBadge';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 
 const STATUS_CONFIG = {
   COMPLETED: {
@@ -36,7 +36,7 @@ export default function WorkItemRow({
   deleting,
 }) {
   const [expanded, setExpanded] = useState(false);
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
 
   const statusConfig = STATUS_CONFIG[item.status] || STATUS_CONFIG.OPEN;
 

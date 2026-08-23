@@ -168,11 +168,27 @@ const getById = async (req, res, next) => {
     if (user.role === 'EXECUTIVE') {
       const hasAccess =
         customer.createdById === userId ||
-        customer.applications.some((app) => app.assignedToId === userId);
+        customer.applications.some((app) => app.assignedToId === userId || app.createdById === userId);
       if (!hasAccess) {
         return res.status(403).json({
           status: 'fail',
           message: 'Access denied: You do not have permission to view this customer',
+        });
+      }
+    } else if (user.role === 'MANAGER') {
+      const hasAccess =
+        customer.createdById === userId ||
+        customer.createdBy?.teamId === user.teamId ||
+        customer.applications.some(
+          (app) =>
+            (user.teamId && app.assignedTo?.teamId === user.teamId) ||
+            app.assignedToId === null ||
+            app.createdById === userId
+        );
+      if (!hasAccess) {
+        return res.status(403).json({
+          status: 'fail',
+          message: 'Access denied: Customer out of team scope',
         });
       }
     }
@@ -198,14 +214,15 @@ const update = async (req, res, next) => {
     }
 
     const user = req.user;
-    const userId = user.sub || user.id;
+    const userId = parseInt(user.sub || user.id, 10);
 
     // Check customer existence
     const existing = await prisma.customer.findUnique({
       where: { id: customerId },
       include: {
+        createdBy: { select: { id: true, teamId: true } },
         applications: {
-          select: { assignedToId: true, assignedTo: { select: { teamId: true } } },
+          select: { assignedToId: true, createdById: true, assignedTo: { select: { teamId: true } } },
         },
       },
     });
@@ -218,14 +235,20 @@ const update = async (req, res, next) => {
     if (user.role === 'EXECUTIVE') {
       const hasAccess =
         existing.createdById === userId ||
-        existing.applications.some((app) => app.assignedToId === userId);
+        existing.applications.some((app) => app.assignedToId === userId || app.createdById === userId);
       if (!hasAccess) {
         return res.status(403).json({ status: 'fail', message: 'Access denied to update customer' });
       }
     } else if (user.role === 'MANAGER') {
       const hasAccess =
         existing.createdById === userId ||
-        existing.applications.some((app) => app.assignedTo?.teamId === user.teamId);
+        existing.createdBy?.teamId === user.teamId ||
+        existing.applications.some(
+          (app) =>
+            (user.teamId && app.assignedTo?.teamId === user.teamId) ||
+            app.assignedToId === null ||
+            app.createdById === userId
+        );
       if (!hasAccess) {
         return res.status(403).json({ status: 'fail', message: 'Access denied: Customer out of team scope' });
       }

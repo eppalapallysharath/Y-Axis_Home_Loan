@@ -19,14 +19,14 @@ import LtvIndicator from '../../../components/applications/LtvIndicator';
 import AssignmentModal from '../../../components/applications/AssignmentModal';
 import WorkItemPanel from '../../../components/workItems/WorkItemPanel';
 import ActivityTimeline from '../../../components/activity/ActivityTimeline';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuth } from '../../../redux/hooks';
 import { useSyncJobDetail } from '../../../hooks/useSyncJobs';
 
 export default function ApplicationDetailPage() {
   const { id } = useParams();
   const appId = parseInt(id, 10);
 
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
   const canAssign = user && (user.role === 'ADMIN' || user.role === 'MANAGER');
   const canSeeCbs = user && (user.role === 'ADMIN' || user.role === 'MANAGER');
 

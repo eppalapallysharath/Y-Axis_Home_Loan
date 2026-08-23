@@ -5,7 +5,7 @@
  */
 const buildApplicationScope = (user) => {
   if (!user) return { id: -1 };
-  const userId = user.sub || user.id;
+  const userId = parseInt(user.sub || user.id, 10);
 
   if (user.role === 'ADMIN') {
     return {};
@@ -14,8 +14,12 @@ const buildApplicationScope = (user) => {
   if (user.role === 'MANAGER') {
     return {
       OR: [
-        { assignedTo: { teamId: user.teamId } },
-        { createdBy: { teamId: user.teamId } },
+        ...(user.teamId
+          ? [
+              { assignedTo: { teamId: user.teamId } },
+              { createdBy: { teamId: user.teamId } },
+            ]
+          : []),
         { assignedToId: null },
         { createdById: userId },
       ],

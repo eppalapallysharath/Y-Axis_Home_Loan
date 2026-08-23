@@ -4,12 +4,12 @@ import { useRouter } from "next/navigation";
 import { LogOut, Shield, ChevronDown, UserCheck } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { useAuthStore } from "../../store/authStore";
+import { useAuth } from "../../redux/hooks";
 import { api } from "../../lib/api";
 
 export function Navbar() {
   const router = useRouter();
-  const { user, setAuth, clearAuth } = useAuthStore();
+  const { user, setAuth, clearAuth } = useAuth();
   const [switching, setSwitching] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -93,18 +93,6 @@ export function Navbar() {
               </div>
               <div className="text-xs text-slate-500">{user.email}</div>
             </div>
-
-            {/* Role Switcher Dropdown Toggle */}
-            {/* <button
-              onClick={() => setDropdownOpen((prev) => !prev)}
-              disabled={switching}
-              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 flex items-center gap-1 text-xs font-medium"
-              title="Switch demo account role"
-            >
-              <UserCheck className="w-4 h-4 text-blue-600" />
-              <span className="hidden md:inline">Switch Role</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button> */}
 
             {dropdownOpen && (
               <div className="absolute right-12 top-12 w-56 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50 text-xs">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 
 /**
  * RoleGate Component
@@ -8,7 +8,7 @@ import { useAuthStore } from '../../store/authStore';
  * Otherwise renders `fallback` (defaults to null).
  */
 export function RoleGate({ allowedRoles, children, fallback = null }) {
-  const isRole = useAuthStore((state) => state.isRole);
+  const { isRole } = useAuth();
 
   if (!isRole(...allowedRoles)) {
     return fallback;

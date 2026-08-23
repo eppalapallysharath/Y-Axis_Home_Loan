@@ -15,7 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
-import { useAuthStore } from "../../store/authStore";
+import { useAuth } from "../../redux/hooks";
 import { api } from "../../lib/api";
 import CbsHealthWidget from "../../components/cbs/CbsHealthWidget";
 import StageBadge from "../../components/applications/StageBadge";
@@ -23,7 +23,7 @@ import PriorityBadge from "../../components/applications/PriorityBadge";
 import { MetricCardSkeleton } from "../../components/common/Skeleton";
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState({
     total: 0,
     inProgress: 0,

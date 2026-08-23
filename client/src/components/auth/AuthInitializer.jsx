@@ -2,12 +2,10 @@
 
 import { useEffect } from 'react';
 import { api } from '../../lib/api';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 
 export function AuthInitializer({ children }) {
-  const setAuth = useAuthStore((state) => state.setAuth);
-  const clearAuth = useAuthStore((state) => state.clearAuth);
-  const setLoading = useAuthStore((state) => state.setLoading);
+  const { setAuth, clearAuth, setLoading } = useAuth();
 
   useEffect(() => {
     async function restoreSession() {

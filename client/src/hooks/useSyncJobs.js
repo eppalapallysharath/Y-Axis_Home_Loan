@@ -1,68 +1,63 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '../lib/api';
+import { useEffect, useCallback } from 'react';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import {
+  fetchSyncJobs as fetchSyncJobsThunk,
+  fetchSyncStats as fetchSyncStatsThunk,
+  fetchSyncJobDetail as fetchSyncJobDetailThunk,
+  retrySyncJob as retrySyncJobThunk,
+  setSyncJobFilters,
+  selectSyncJobs,
+  selectSyncJobsPagination,
+  selectSyncJobStats,
+  selectCurrentSyncJob,
+  selectSyncJobFilters,
+  selectSyncJobsLoading,
+  selectSyncStatsLoading,
+  selectSyncJobDetailLoading,
+  selectSyncRetryLoading,
+  selectSyncJobsError,
+} from '../redux/slices/syncJobSlice';
 
 /**
- * Hook to fetch paginated & status-filtered CBS sync jobs
+ * Redux-backed Hook to fetch paginated & status-filtered CBS sync jobs
  */
 export function useSyncJobs(initialFilters = {}) {
-  const [jobs, setJobs] = useState([]);
-  const [pagination, setPagination] = useState({
-    total: 0,
-    page: 1,
-    limit: 20,
-    totalPages: 1,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({
-    status: '',
-    page: 1,
-    limit: 20,
-    ...initialFilters,
-  });
-
-  const fetchJobs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (filters.status && filters.status !== 'ALL') params.append('status', filters.status);
-      if (filters.page) params.append('page', String(filters.page));
-      if (filters.limit) params.append('limit', String(filters.limit));
-
-      const queryStr = params.toString() ? `?${params.toString()}` : '';
-      const response = await api.get(`/sync-jobs${queryStr}`);
-
-      setJobs(response.data || []);
-      setPagination(response.pagination || { total: 0, page: 1, limit: 20, totalPages: 1 });
-    } catch (err) {
-      console.error('Error fetching CBS sync jobs:', err);
-      setError(err.message || 'Failed to fetch sync jobs');
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
+  const dispatch = useAppDispatch();
+  const jobs = useAppSelector(selectSyncJobs);
+  const pagination = useAppSelector(selectSyncJobsPagination);
+  const loading = useAppSelector(selectSyncJobsLoading);
+  const error = useAppSelector(selectSyncJobsError);
+  const filters = useAppSelector(selectSyncJobFilters);
 
   useEffect(() => {
-    fetchJobs();
+    if (Object.keys(initialFilters).length > 0) {
+      dispatch(setSyncJobFilters(initialFilters));
+    }
+  }, []); // Run once on mount
+
+  const refetch = useCallback(() => {
+    dispatch(fetchSyncJobsThunk(filters));
+  }, [dispatch, filters]);
+
+  useEffect(() => {
+    dispatch(fetchSyncJobsThunk(filters));
 
     // Auto-refresh every 60s to pick up background retry worker updates
     const timer = setInterval(() => {
-      fetchJobs();
+      dispatch(fetchSyncJobsThunk(filters));
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [fetchJobs]);
+  }, [dispatch, filters]);
 
-  const updateFilters = (newFilters) => {
-    setFilters((prev) => ({
-      ...prev,
-      ...newFilters,
-      page: newFilters.page !== undefined ? newFilters.page : 1,
-    }));
-  };
+  const updateFilters = useCallback(
+    (newFilters) => {
+      dispatch(setSyncJobFilters(newFilters));
+    },
+    [dispatch]
+  );
 
   return {
     jobs,
@@ -71,131 +66,85 @@ export function useSyncJobs(initialFilters = {}) {
     error,
     filters,
     updateFilters,
-    refetch: fetchJobs,
+    refetch,
   };
 }
 
 /**
- * Hook to fetch CBS Health summary statistics
+ * Redux-backed Hook to fetch CBS Health summary statistics
  */
 export function useSyncJobStats() {
-  const [stats, setStats] = useState({
-    total: 0,
-    success: 0,
-    pending: 0,
-    inProgress: 0,
-    failed: 0,
-    exhausted: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const stats = useAppSelector(selectSyncJobStats);
+  const loading = useAppSelector(selectSyncStatsLoading);
+  const error = useAppSelector(selectSyncJobsError);
 
-  const fetchStats = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await api.get('/sync-jobs/stats');
-      setStats(
-        response.data || {
-          total: 0,
-          success: 0,
-          pending: 0,
-          inProgress: 0,
-          failed: 0,
-          exhausted: 0,
-        }
-      );
-    } catch (err) {
-      console.error('Error fetching CBS sync stats:', err);
-      setError(err.message || 'Failed to fetch CBS stats');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const refetch = useCallback(() => {
+    dispatch(fetchSyncStatsThunk());
+  }, [dispatch]);
 
   useEffect(() => {
-    fetchStats();
+    dispatch(fetchSyncStatsThunk());
 
     // Refresh every 30s for health widget updates
     const timer = setInterval(() => {
-      fetchStats();
+      dispatch(fetchSyncStatsThunk());
     }, 30000);
 
     return () => clearInterval(timer);
-  }, [fetchStats]);
+  }, [dispatch]);
 
   return {
     stats,
     loading,
     error,
-    refetch: fetchStats,
+    refetch,
   };
 }
 
 /**
- * Hook to fetch a single application's CBS Sync Job details
+ * Redux-backed Hook to fetch a single application's CBS Sync Job details
  */
 export function useSyncJobDetail(applicationId) {
-  const [syncJob, setSyncJob] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const syncJob = useAppSelector(selectCurrentSyncJob);
+  const loading = useAppSelector(selectSyncJobDetailLoading);
+  const error = useAppSelector(selectSyncJobsError);
 
-  const fetchJob = useCallback(async () => {
-    if (!applicationId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await api.get(`/sync-jobs/${applicationId}`);
-      setSyncJob(response.data || null);
-    } catch (err) {
-      if (
-        err.status === 404 ||
-        err.data?.statusCode === 404 ||
-        (err.message && err.message.toLowerCase().includes('not found'))
-      ) {
-        // No CBS sync job record exists yet for this application (normal state)
-        setSyncJob(null);
-        setError(null);
-      } else {
-        console.warn(`Error fetching CBS sync job for app #${applicationId}:`, err.message);
-        setError(err.message || 'Failed to fetch sync job detail');
-      }
-    } finally {
-      setLoading(false);
+  const refetch = useCallback(() => {
+    if (applicationId) {
+      dispatch(fetchSyncJobDetailThunk(applicationId));
     }
-  }, [applicationId]);
+  }, [dispatch, applicationId]);
 
   useEffect(() => {
-    fetchJob();
-  }, [fetchJob]);
+    if (applicationId) {
+      dispatch(fetchSyncJobDetailThunk(applicationId));
+    }
+  }, [dispatch, applicationId]);
 
   return {
     syncJob,
     loading,
     error,
-    refetch: fetchJob,
+    refetch,
   };
 }
 
 /**
- * Hook for manually retrying a failed/exhausted sync job
+ * Redux-backed Hook for manually retrying a failed/exhausted sync job
  */
 export function useManualRetry(applicationId) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const dispatch = useAppDispatch();
+  const loading = useAppSelector(selectSyncRetryLoading);
+  const error = useAppSelector(selectSyncJobsError);
 
   const retrySync = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await api.post(`/sync-jobs/${applicationId}/retry`);
-      return { success: true, message: response.message };
-    } catch (err) {
-      const errMsg = err.response?.data?.message || err.message || 'Manual retry failed';
-      setError(errMsg);
-      return { success: false, message: errMsg };
-    } finally {
-      setLoading(false);
+    const resultAction = await dispatch(retrySyncJobThunk(applicationId));
+    if (retrySyncJobThunk.fulfilled.match(resultAction)) {
+      return { success: true, message: resultAction.payload.message };
+    } else {
+      return { success: false, message: resultAction.payload || 'Manual retry failed' };
     }
   };
 

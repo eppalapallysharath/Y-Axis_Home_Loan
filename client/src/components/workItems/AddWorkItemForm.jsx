@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 
 const STANDARD_TEMPLATES = {
   CIBIL_CHECK: {
@@ -32,7 +32,7 @@ const STANDARD_TEMPLATES = {
 };
 
 export default function AddWorkItemForm({ onSubmit, onCancel, submitting }) {
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
   const canAssign = user && (user.role === 'ADMIN' || user.role === 'MANAGER');
 
   const [type, setType] = useState('CIBIL_CHECK');

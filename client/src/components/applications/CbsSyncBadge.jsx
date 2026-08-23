@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../redux/hooks';
 import { RoleGate } from '../auth/RoleGate';
 import { useManualRetry } from '../../hooks/useSyncJobs';
 
@@ -46,7 +46,7 @@ export default function CbsSyncBadge({
   showDetail = false,
 }) {
   const config = CBS_CONFIG[status] || CBS_CONFIG.PENDING;
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
   const { retrySync, loading: retrying } = useManualRetry(applicationId);
   const [toastMessage, setToastMessage] = useState(null);
 
